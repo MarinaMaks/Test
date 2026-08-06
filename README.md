@@ -1,1 +1,1 @@
-index.html
+snake.html
