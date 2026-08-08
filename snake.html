@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Змейка</title>
-  <!-- manifest убираем, чтобы не было PWA и кэша -->
   <style>
     * { box-sizing: border-box; }
     body {
@@ -24,16 +23,19 @@
       height: 100vh;
       max-width: 600px;
       max-height: 900px;
-      /* Центрируем, если экран очень широкий */
-      display: flex;
-      justify-content: center;
-      align-items: center;
+      /* УБРАЛИ центрирование — теперь всё будет прижиматься к верху */
+      display: block;
     }
     canvas {
       display: block;
       background: #0f0f0f;
       touch-action: none;
-      image-rendering: pixelated; /* Чтобы не размывалось при масштабировании */
+      image-rendering: pixelated;
+      position: absolute;
+      top: 64px; /* Отступ сверху под счётчик и статус */
+      left: 50%;
+      transform: translateX(-50%);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
     }
     /* Экран старта и Game Over */
     #start-screen, #game-over-screen {
@@ -106,7 +108,6 @@
 <body>
   <div id="game-container">
     <div id="score-board">Счёт: <span id="score">0</span></div>
-    <!-- canvas без фиксированных width/height -->
     <canvas id="game"></canvas>
 
     <div id="start-screen">
@@ -133,10 +134,9 @@
     const canvas = document.getElementById('game');
     const ctx = canvas.getContext('2d');
 
-    // Параметры игры
-    let tileCount = 20; // По умолчанию 20x20
-    let gridSize = 0;   // Будет рассчитан под экран
-    const moveInterval = 260; // Стабильно на мобильных
+    let tileCount = 20;
+    let gridSize = 0;
+    const moveInterval = 260;
 
     let snake = [];
     let food = { x: 15, y: 15 };
@@ -153,12 +153,11 @@
       const cw = container.clientWidth;
       const ch = container.clientHeight;
 
-      // Выбираем размер поля под экран: на узких телефонах делаем 16x16, иначе 20x20
+      // На узких экранах делаем поле 16×16, иначе 20×20
       tileCount = (cw < 420) ? 16 : 20;
 
-      // Подбираем размер клетки так, чтобы поле занимало максимум места, но не вылезало
-      const maxTileSize = Math.floor(Math.min(cw, ch) / tileCount);
-      gridSize = maxTileSize;
+      const maxTileSize = Math.floor(Math.min(cw, ch - 128) / tileCount); // -128 под отступы сверху/снизу
+      gridSize = Math.max(16, maxTileSize); // Минимум 16 px, чтобы не становилось слишком мелко
 
       canvas.width = tileCount * gridSize;
       canvas.height = tileCount * gridSize;
@@ -199,7 +198,6 @@
         if (!occupied) return;
       }
 
-      // Фолбэк: ищем первую свободную клетку
       for (let x = 0; x < tileCount; x++) {
         for (let y = 0; y < tileCount; y++) {
           let occupied = false;
@@ -250,7 +248,6 @@
       snake.forEach((part, index) => {
         const color = index === 0 ? '#66bb6a' : '#4caf50';
         ctx.fillStyle = color;
-        // Отступы внутри клетки, чтобы сегменты не слипались
         ctx.fillRect(
           part.x * gridSize + 3,
           part.y * gridSize + 3,
@@ -281,7 +278,7 @@
     function startGame() {
       if (isGameRunning) return;
       isGameRunning = true;
-      resize(); // Пересчитать размеры перед стартом
+      resize();
       resetGame();
       lastMoveTime = performance.now();
       loop(performance.now());
@@ -312,7 +309,6 @@
   </script>
 </body>
 </html>
-
 
 
 
