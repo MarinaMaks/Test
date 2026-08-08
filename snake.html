@@ -4,8 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Змейка</title>
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#4caf50">
+  <!-- УБРАЛИ manifest.json, чтобы не было PWA -->
   <style>
     * { box-sizing: border-box; }
     body {
@@ -31,7 +30,6 @@
       background: #0f0f0f;
       touch-action: none;
     }
-    /* Экран старта и Game Over */
     #start-screen, #game-over-screen {
       position: absolute;
       inset: 0;
@@ -67,7 +65,6 @@
       z-index: 10;
     }
 
-    /* Блок управления */
     .controls {
       position: absolute;
       bottom: 85px;
@@ -130,7 +127,8 @@
 
     const gridSize = 20;
     const tileCount = 20;
-    const moveInterval = 260; // Чуть медленнее — стабильнее на мобильных
+    // Чуть медленнее для стабильности на мобильных
+    const moveInterval = 260;
 
     let snake = [];
     let food = { x: 15, y: 15 };
@@ -161,7 +159,7 @@
       document.getElementById('score').textContent = score;
     }
 
-    // Максимально надёжный спавн еды
+    // Надёжный спавн еды
     function placeFood() {
       const maxAttempts = 200;
       for (let i = 0; i < maxAttempts; i++) {
@@ -178,7 +176,7 @@
         if (!occupied) return;
       }
 
-      // Если случайные попытки не сработали (почти невозможно), ищем первую свободную клетку
+      // Фолбэк: ищем первую свободную клетку
       for (let x = 0; x < tileCount; x++) {
         for (let y = 0; y < tileCount; y++) {
           let occupied = false;
@@ -195,9 +193,8 @@
           }
         }
       }
-      // Крайний случай: ставим в (0,0) — если и тут змейка, игра всё равно скоро закончится
-      food.x = 0;
-      food.y = 0;
+      // Крайний случай
+      food.x = 0; food.y = 0;
     }
 
     function move() {
@@ -228,7 +225,6 @@
       ctx.fillStyle = '#0f0f0f';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Рисуем змейку
       snake.forEach((part, index) => {
         const color = index === 0 ? '#66bb6a' : '#4caf50';
         ctx.fillStyle = color;
@@ -240,7 +236,6 @@
         );
       });
 
-      // Рисуем еду — обязательно после очистки холста
       ctx.fillStyle = '#ff9800';
       ctx.fillRect(
         food.x * gridSize + 4,
