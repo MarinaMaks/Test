@@ -23,7 +23,6 @@
       height: 100vh;
       max-width: 600px;
       max-height: 900px;
-      /* УБРАЛИ центрирование — теперь всё будет прижиматься к верху */
       display: block;
     }
     canvas {
@@ -32,13 +31,14 @@
       touch-action: none;
       image-rendering: pixelated;
       position: absolute;
-      top: 64px; /* Отступ сверху под счётчик и статус */
+      top: 64px;
       left: 50%;
       transform: translateX(-50%);
       box-shadow: 0 4px 16px rgba(0,0,0,0.4);
     }
-    /* Экран старта и Game Over */
-    #start-screen, #game-over-screen {
+
+    /* Экран старта */
+    #start-screen {
       position: absolute;
       inset: 0;
       background: rgba(0,0,0,0.9);
@@ -49,7 +49,21 @@
       z-index: 20;
       text-align: center;
     }
-    h1 { margin: 0 0 8px; font-size: 24px; }
+
+    /* Экран Game Over + Рейтинг */
+    #game-over-screen {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.95);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 20;
+      text-align: center;
+      padding: 20px;
+    }
+    h1 { margin: 0 0 12px; font-size: 24px; }
     p { margin: 0 0 20px; color: #ccc; font-size: 16px; }
     .btn-primary {
       padding: 18px 36px;
@@ -73,7 +87,6 @@
       z-index: 10;
     }
 
-    /* Блок управления */
     .controls {
       position: absolute;
       bottom: 85px;
@@ -103,6 +116,39 @@
     #btn-left { grid-column: 1; grid-row: 2; }
     #btn-down { grid-column: 2; grid-row: 3; }
     #btn-right { grid-column: 3; grid-row: 2; }
+
+    /* Стили для рейтинга */
+    .leaderboard {
+      background: #2b2b2b;
+      border: 1px solid #444;
+      border-radius: 8px;
+      padding: 12px 18px;
+      width: 100%;
+      max-width: 320px;
+      margin-bottom: 24px;
+    }
+    .leaderboard-title {
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 12px;
+      color: #aaa;
+      text-align: left;
+    }
+    .rank-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      border-bottom: 1px solid #333;
+    }
+    .rank-row:last-child { border-bottom: none; }
+    .rank-num {
+      color: #ff9800;
+      font-weight: bold;
+    }
+    .rank-score {
+      font-weight: bold;
+      color: #ddd;
+    }
   </style>
 </head>
 <body>
@@ -110,15 +156,23 @@
     <div id="score-board">Счёт: <span id="score">0</span></div>
     <canvas id="game"></canvas>
 
+    <!-- Экран старта -->
     <div id="start-screen">
       <h1>Змейка</h1>
       <p>Нажимай кнопки на экране</p>
       <button class="btn-primary" id="btn-start">Начать игру</button>
     </div>
 
+    <!-- Экран Game Over с рейтингом -->
     <div id="game-over-screen" style="display:none;">
       <h1>Игра окончена</h1>
-      <p>Счёт: <span id="final-score">0</span></p>
+      <p>Твой счёт: <span id="final-score" style="color:#ff9800;font-weight:bold;">0</span></p>
+
+      <div class="leaderboard">
+        <div class="leaderboard-title">Топ-5 результатов</div>
+        <div id="leaderboard-list"></div>
+      </div>
+
       <button class="btn-primary" id="btn-restart">Играть снова</button>
     </div>
 
@@ -134,6 +188,7 @@
     const canvas = document.getElementById('game');
     const ctx = canvas.getContext('2d');
 
+    // --- Параметры игры ---
     let tileCount = 20;
     let gridSize = 0;
     const moveInterval = 260;
@@ -148,16 +203,60 @@
     let isGameRunning = false;
     let lastMoveTime = 0;
 
+    // --- Рейтинг (LocalStorage) ---
+    const MAX_RANK_SIZE = 5;
+
+    function getLeaderboard() {
+      const stored = localStorage.getItem('snake_leaderboard');
+      if (!stored) return [];
+      try {
+        const parsed = JSON.parse(stored);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function saveLeaderboard(list) {
+      localStorage.setItem('snake_leaderboard', JSON.stringify(list));
+    }
+
+    function updateLeaderboard(newScore) {
+      let list = getLeaderboard();
+      // Добавляем текущий результат без имени
+      list.push({ score: newScore });
+      // Сортируем по убыванию
+      list.sort((a, b) => b.score - a.score);
+      // Оставляем только топ-5
+      list = list.slice(0, MAX_RANK_SIZE);
+      saveLeaderboard(list);
+      return list;
+    }
+
+    function renderLeaderboard(list, currentScore) {
+      const container = document.getElementById('leaderboard-list');
+      container.innerHTML = '';
+      list.forEach((item, index) => {
+        const row = document.createElement('div');
+        row.className = 'rank-row';
+        const isCurrent = item.score === currentScore;
+        row.innerHTML = `
+          <span class="rank-num">${index + 1}</span>
+          <span class="rank-score" ${isCurrent ? 'style="color:#4caf50"' : ''}>${item.score}</span>
+        `;
+        container.appendChild(row);
+      });
+    }
+
+    // --- Игровые функции ---
     function resize() {
       const container = document.getElementById('game-container');
       const cw = container.clientWidth;
       const ch = container.clientHeight;
 
-      // На узких экранах делаем поле 16×16, иначе 20×20
       tileCount = (cw < 420) ? 16 : 20;
-
-      const maxTileSize = Math.floor(Math.min(cw, ch - 128) / tileCount); // -128 под отступы сверху/снизу
-      gridSize = Math.max(16, maxTileSize); // Минимум 16 px, чтобы не становилось слишком мелко
+      const maxTileSize = Math.floor(Math.min(cw, ch - 128) / tileCount);
+      gridSize = Math.max(16, maxTileSize);
 
       canvas.width = tileCount * gridSize;
       canvas.height = tileCount * gridSize;
@@ -286,7 +385,12 @@
 
     function gameOver() {
       isGameRunning = false;
-      document.getElementById('final-score').textContent = score;
+      const finalScoreEl = document.getElementById('final-score');
+      finalScoreEl.textContent = score;
+
+      const leaderboard = updateLeaderboard(score);
+      renderLeaderboard(leaderboard, score);
+
       document.getElementById('game-over-screen').style.display = 'flex';
     }
 
@@ -309,6 +413,5 @@
   </script>
 </body>
 </html>
-
 
 
