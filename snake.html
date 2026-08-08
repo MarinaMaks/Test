@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Змейка</title>
-  <!-- УБРАЛИ manifest.json, чтобы не было PWA -->
+  <!-- manifest убираем, чтобы не было PWA и кэша -->
   <style>
     * { box-sizing: border-box; }
     body {
@@ -24,12 +24,18 @@
       height: 100vh;
       max-width: 600px;
       max-height: 900px;
+      /* Центрируем, если экран очень широкий */
+      display: flex;
+      justify-content: center;
+      align-items: center;
     }
     canvas {
       display: block;
       background: #0f0f0f;
       touch-action: none;
+      image-rendering: pixelated; /* Чтобы не размывалось при масштабировании */
     }
+    /* Экран старта и Game Over */
     #start-screen, #game-over-screen {
       position: absolute;
       inset: 0;
@@ -65,6 +71,7 @@
       z-index: 10;
     }
 
+    /* Блок управления */
     .controls {
       position: absolute;
       bottom: 85px;
@@ -99,7 +106,8 @@
 <body>
   <div id="game-container">
     <div id="score-board">Счёт: <span id="score">0</span></div>
-    <canvas id="game" width="400" height="400"></canvas>
+    <!-- canvas без фиксированных width/height -->
+    <canvas id="game"></canvas>
 
     <div id="start-screen">
       <h1>Змейка</h1>
@@ -125,10 +133,10 @@
     const canvas = document.getElementById('game');
     const ctx = canvas.getContext('2d');
 
-    const gridSize = 20;
-    const tileCount = 20;
-    // Чуть медленнее для стабильности на мобильных
-    const moveInterval = 260;
+    // Параметры игры
+    let tileCount = 20; // По умолчанию 20x20
+    let gridSize = 0;   // Будет рассчитан под экран
+    const moveInterval = 260; // Стабильно на мобильных
 
     let snake = [];
     let food = { x: 15, y: 15 };
@@ -140,11 +148,27 @@
     let isGameRunning = false;
     let lastMoveTime = 0;
 
+    function resize() {
+      const container = document.getElementById('game-container');
+      const cw = container.clientWidth;
+      const ch = container.clientHeight;
+
+      // Выбираем размер поля под экран: на узких телефонах делаем 16x16, иначе 20x20
+      tileCount = (cw < 420) ? 16 : 20;
+
+      // Подбираем размер клетки так, чтобы поле занимало максимум места, но не вылезало
+      const maxTileSize = Math.floor(Math.min(cw, ch) / tileCount);
+      gridSize = maxTileSize;
+
+      canvas.width = tileCount * gridSize;
+      canvas.height = tileCount * gridSize;
+    }
+
     function resetGame() {
       snake = [
-        { x: 10, y: 10 },
-        { x: 9, y: 10 },
-        { x: 8, y: 10 }
+        { x: Math.floor(tileCount/2), y: Math.floor(tileCount/2) },
+        { x: Math.floor(tileCount/2)-1, y: Math.floor(tileCount/2) },
+        { x: Math.floor(tileCount/2)-2, y: Math.floor(tileCount/2) }
       ];
       placeFood();
       dx = 1; dy = 0;
@@ -159,7 +183,6 @@
       document.getElementById('score').textContent = score;
     }
 
-    // Надёжный спавн еды
     function placeFood() {
       const maxAttempts = 200;
       for (let i = 0; i < maxAttempts; i++) {
@@ -193,7 +216,6 @@
           }
         }
       }
-      // Крайний случай
       food.x = 0; food.y = 0;
     }
 
@@ -228,6 +250,7 @@
       snake.forEach((part, index) => {
         const color = index === 0 ? '#66bb6a' : '#4caf50';
         ctx.fillStyle = color;
+        // Отступы внутри клетки, чтобы сегменты не слипались
         ctx.fillRect(
           part.x * gridSize + 3,
           part.y * gridSize + 3,
@@ -258,6 +281,7 @@
     function startGame() {
       if (isGameRunning) return;
       isGameRunning = true;
+      resize(); // Пересчитать размеры перед стартом
       resetGame();
       lastMoveTime = performance.now();
       loop(performance.now());
@@ -283,9 +307,12 @@
 
     document.getElementById('btn-start').addEventListener('click', startGame);
     document.getElementById('btn-restart').addEventListener('click', startGame);
+
+    window.addEventListener('resize', resize);
   </script>
 </body>
 </html>
+
 
 
 
