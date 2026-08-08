@@ -1,7 +1,7 @@
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open('snake-v1').then(cache =>
-      cache.addAll(['index.html', 'manifest.json', 'icon-192.png', 'icon-512.png'])
+      cache.addAll(['snake.html', 'manifest.json', 'icon-192.png', 'icon-512.png'])
     )
   );
 });
