@@ -19,7 +19,6 @@
       flex-direction: column;
       align-items: center;
     }
-
     #game-container {
       position: relative;
       width: 100vw;
@@ -27,13 +26,11 @@
       max-width: 600px;
       max-height: 900px;
     }
-
     canvas {
       display: block;
       background: #0f0f0f;
       touch-action: none;
     }
-
     /* Экран старта и Game Over */
     #start-screen, #game-over-screen {
       position: absolute;
@@ -70,7 +67,7 @@
       z-index: 10;
     }
 
-    /* Блок управления — клавиатура-стиль */
+    /* Блок управления */
     .controls {
       position: absolute;
       bottom: 85px;
@@ -82,7 +79,6 @@
       gap: 12px;
       z-index: 10;
     }
-
     button {
       width: 64px;
       height: 64px;
@@ -97,7 +93,6 @@
     }
     button:active { background: rgba(255,255,255,0.35); }
 
-    /* Позиции кнопок как на клавиатуре */
     #btn-up { grid-column: 2; grid-row: 1; }
     #btn-left { grid-column: 1; grid-row: 2; }
     #btn-down { grid-column: 2; grid-row: 3; }
@@ -121,7 +116,6 @@
       <button class="btn-primary" id="btn-restart">Играть снова</button>
     </div>
 
-    <!-- Управление в стиле клавиатуры -->
     <div class="controls">
       <button id="btn-up">&#8593;</button>
       <button id="btn-left">&#8592;</button>
@@ -134,10 +128,9 @@
     const canvas = document.getElementById('game');
     const ctx = canvas.getContext('2d');
 
-    // Параметры игры (оптимизировано под мобильные устройства)
     const gridSize = 20;
     const tileCount = 20;
-    const moveInterval = 240; // Чуть медленнее для стабильности FPS
+    const moveInterval = 260; // Чуть медленнее — стабильнее на мобильных
 
     let snake = [];
     let food = { x: 15, y: 15 };
@@ -155,7 +148,7 @@
         { x: 9, y: 10 },
         { x: 8, y: 10 }
       ];
-      placeFood(); // Сразу ставим еду в гарантированно свободную клетку
+      placeFood();
       dx = 1; dy = 0;
       nextDx = 1; nextDy = 0;
       score = 0;
@@ -168,41 +161,43 @@
       document.getElementById('score').textContent = score;
     }
 
-    // Надёжная генерация еды: цикл, пока не найдём свободную клетку
+    // Максимально надёжный спавн еды
     function placeFood() {
-      let attempts = 0;
-      const maxAttempts = 100;
-      while (attempts < maxAttempts) {
+      const maxAttempts = 200;
+      for (let i = 0; i < maxAttempts; i++) {
         food.x = Math.floor(Math.random() * tileCount);
         food.y = Math.floor(Math.random() * tileCount);
 
-        let isOccupied = false;
-        for (let i = 0; i < snake.length; i++) {
-          if (food.x === snake[i].x && food.y === snake[i].y) {
-            isOccupied = true;
+        let occupied = false;
+        for (const part of snake) {
+          if (part.x === food.x && part.y === food.y) {
+            occupied = true;
             break;
           }
         }
-        if (!isOccupied) return; // Успешно нашли свободную клетку
-        attempts++;
+        if (!occupied) return;
       }
-      // Если не нашли за 100 попыток (крайне редкий случай), ставим в первую свободную
+
+      // Если случайные попытки не сработали (почти невозможно), ищем первую свободную клетку
       for (let x = 0; x < tileCount; x++) {
         for (let y = 0; y < tileCount; y++) {
-          let isOccupied = false;
-          for (let i = 0; i < snake.length; i++) {
-            if (x === snake[i].x && y === snake[i].y) {
-              isOccupied = true;
+          let occupied = false;
+          for (const part of snake) {
+            if (part.x === x && part.y === y) {
+              occupied = true;
               break;
             }
           }
-          if (!isOccupied) {
+          if (!occupied) {
             food.x = x;
             food.y = y;
             return;
           }
         }
       }
+      // Крайний случай: ставим в (0,0) — если и тут змейка, игра всё равно скоро закончится
+      food.x = 0;
+      food.y = 0;
     }
 
     function move() {
@@ -213,8 +208,8 @@
       if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount) {
         gameOver(); return;
       }
-      for (let i = 0; i < snake.length; i++) {
-        if (head.x === snake[i].x && head.y === snake[i].y) {
+      for (const part of snake) {
+        if (head.x === part.x && head.y === part.y) {
           gameOver(); return;
         }
       }
@@ -230,7 +225,6 @@
     }
 
     function draw() {
-      // Полная очистка холста — обязательно для мобильных устройств
       ctx.fillStyle = '#0f0f0f';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -238,7 +232,6 @@
       snake.forEach((part, index) => {
         const color = index === 0 ? '#66bb6a' : '#4caf50';
         ctx.fillStyle = color;
-        // Отступы, чтобы сегменты не слипались и не мерцали
         ctx.fillRect(
           part.x * gridSize + 3,
           part.y * gridSize + 3,
@@ -247,7 +240,7 @@
         );
       });
 
-      // Рисуем еду — обязательно после очистки и ДО любых других эффектов
+      // Рисуем еду — обязательно после очистки холста
       ctx.fillStyle = '#ff9800';
       ctx.fillRect(
         food.x * gridSize + 4,
@@ -282,7 +275,6 @@
     }
 
     function setDirection(newDx, newDy) {
-      // Защита от разворота на 180 градусов
       if (!(dx === -newDx && dy === -newDy)) {
         nextDx = newDx;
         nextDy = newDy;
@@ -299,5 +291,6 @@
   </script>
 </body>
 </html>
+
 
 
