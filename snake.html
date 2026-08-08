@@ -7,6 +7,7 @@
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#4caf50">
   <style>
+    * { box-sizing: border-box; }
     body {
       margin: 0;
       padding: 0;
@@ -30,7 +31,6 @@
     canvas {
       display: block;
       background: #0f0f0f;
-      box-shadow: 0 0 10px rgba(0,0,0,0.5);
       touch-action: none;
     }
 
@@ -38,7 +38,7 @@
     #start-screen, #game-over-screen {
       position: absolute;
       inset: 0;
-      background: rgba(0,0,0,0.85);
+      background: rgba(0,0,0,0.9);
       display: flex;
       flex-direction: column;
       justify-content: center;
@@ -46,23 +46,24 @@
       z-index: 20;
       text-align: center;
     }
-    h1 { margin: 0 0 8px; }
-    p { margin: 0 0 20px; color: #ccc; }
+    h1 { margin: 0 0 8px; font-size: 24px; }
+    p { margin: 0 0 20px; color: #ccc; font-size: 16px; }
     .btn-primary {
-      padding: 16px 32px;
+      padding: 18px 36px;
       font-size: 18px;
       background: #4caf50;
       color: white;
       border: none;
-      border-radius: 8px;
+      border-radius: 10px;
       cursor: pointer;
+      user-select: none;
     }
     .btn-primary:active { background: #388e3c; }
 
     #score-board {
       position: absolute;
-      top: 16px;
-      left: 16px;
+      top: 14px;
+      left: 14px;
       font-size: 20px;
       font-weight: bold;
       text-shadow: 1px 1px 2px black;
@@ -72,28 +73,29 @@
     /* Блок управления — клавиатура-стиль */
     .controls {
       position: absolute;
-      bottom: 80px;
+      bottom: 85px;
       left: 50%;
       transform: translateX(-50%);
       display: grid;
-      grid-template-columns: 56px 56px 56px;
-      grid-template-rows: 56px 56px 56px;
+      grid-template-columns: 64px 64px 64px;
+      grid-template-rows: 64px 64px 64px;
       gap: 12px;
       z-index: 10;
     }
 
     button {
-      width: 56px;
-      height: 56px;
+      width: 64px;
+      height: 64px;
       border: none;
-      background: rgba(255,255,255,0.15);
+      background: rgba(255,255,255,0.12);
       color: white;
-      border-radius: 12px;
-      font-size: 24px;
+      border-radius: 14px;
+      font-size: 28px;
       user-select: none;
       touch-action: manipulation;
+      outline: none;
     }
-    button:active { background: rgba(255,255,255,0.3); }
+    button:active { background: rgba(255,255,255,0.35); }
 
     /* Позиции кнопок как на клавиатуре */
     #btn-up { grid-column: 2; grid-row: 1; }
@@ -132,10 +134,10 @@
     const canvas = document.getElementById('game');
     const ctx = canvas.getContext('2d');
 
+    // Параметры игры (оптимизировано под мобильные устройства)
     const gridSize = 20;
     const tileCount = 20;
-    // Чуть медленнее, чтобы на телефонах было стабильнее
-    const moveInterval = 220; 
+    const moveInterval = 240; // Чуть медленнее для стабильности FPS
 
     let snake = [];
     let food = { x: 15, y: 15 };
@@ -153,8 +155,7 @@
         { x: 9, y: 10 },
         { x: 8, y: 10 }
       ];
-      // Сразу ставим еду в гарантированно свободное место
-      placeFood();
+      placeFood(); // Сразу ставим еду в гарантированно свободную клетку
       dx = 1; dy = 0;
       nextDx = 1; nextDy = 0;
       score = 0;
@@ -169,16 +170,36 @@
 
     // Надёжная генерация еды: цикл, пока не найдём свободную клетку
     function placeFood() {
-      let valid = false;
-      while (!valid) {
+      let attempts = 0;
+      const maxAttempts = 100;
+      while (attempts < maxAttempts) {
         food.x = Math.floor(Math.random() * tileCount);
         food.y = Math.floor(Math.random() * tileCount);
 
-        valid = true;
+        let isOccupied = false;
         for (let i = 0; i < snake.length; i++) {
           if (food.x === snake[i].x && food.y === snake[i].y) {
-            valid = false;
+            isOccupied = true;
             break;
+          }
+        }
+        if (!isOccupied) return; // Успешно нашли свободную клетку
+        attempts++;
+      }
+      // Если не нашли за 100 попыток (крайне редкий случай), ставим в первую свободную
+      for (let x = 0; x < tileCount; x++) {
+        for (let y = 0; y < tileCount; y++) {
+          let isOccupied = false;
+          for (let i = 0; i < snake.length; i++) {
+            if (x === snake[i].x && y === snake[i].y) {
+              isOccupied = true;
+              break;
+            }
+          }
+          if (!isOccupied) {
+            food.x = x;
+            food.y = y;
+            return;
           }
         }
       }
@@ -202,14 +223,14 @@
       if (head.x === food.x && head.y === food.y) {
         score += 10;
         updateScore();
-        placeFood(); // Сразу генерируем новую еду
+        placeFood();
       } else {
         snake.pop();
       }
     }
 
     function draw() {
-      // Полная очистка холста — это важно для мобильных браузеров
+      // Полная очистка холста — обязательно для мобильных устройств
       ctx.fillStyle = '#0f0f0f';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -217,16 +238,16 @@
       snake.forEach((part, index) => {
         const color = index === 0 ? '#66bb6a' : '#4caf50';
         ctx.fillStyle = color;
-        // Рисуем с небольшим отступом, чтобы не слипались клетки
+        // Отступы, чтобы сегменты не слипались и не мерцали
         ctx.fillRect(
-          part.x * gridSize + 2,
-          part.y * gridSize + 2,
-          gridSize - 4,
-          gridSize - 4
+          part.x * gridSize + 3,
+          part.y * gridSize + 3,
+          gridSize - 6,
+          gridSize - 6
         );
       });
 
-      // Рисуем еду (тоже с отступом — так её точно видно)
+      // Рисуем еду — обязательно после очистки и ДО любых других эффектов
       ctx.fillStyle = '#ff9800';
       ctx.fillRect(
         food.x * gridSize + 4,
@@ -260,9 +281,8 @@
       document.getElementById('game-over-screen').style.display = 'flex';
     }
 
-    // Управление кнопками
     function setDirection(newDx, newDy) {
-      // Нельзя развернуться на 180 градусов
+      // Защита от разворота на 180 градусов
       if (!(dx === -newDx && dy === -newDy)) {
         nextDx = newDx;
         nextDy = newDy;
@@ -277,15 +297,7 @@
     document.getElementById('btn-start').addEventListener('click', startGame);
     document.getElementById('btn-restart').addEventListener('click', startGame);
   </script>
-
-<script>
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js');
-  });
-}
-</script>
-  
 </body>
 </html>
+
 
